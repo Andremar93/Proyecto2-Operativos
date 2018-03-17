@@ -32,6 +32,7 @@ typedef struct contenedor{
 }contenedor;
 
 typedef struct lista{
+    char llave[10000];
     contenedor *head;
 }lista;
 
@@ -49,8 +50,9 @@ Parametros
 Funcion que crea una nueva estructura lista
 */
 
-lista * nuevalista(){
+lista * nuevalista(char *llave){
     lista *nueva_lista = (lista*) malloc(sizeof(lista));
+    strcpy(nueva_lista->llave, llave);
     nueva_lista->head = NULL;
     return nueva_lista;
 }
@@ -115,7 +117,7 @@ void add_hash(contenedor* agregar, lista* indice[]){
         unsigned int posicion = hash(llave);
 
         if(indice[posicion] == NULL){
-            lista *nueva_llave = nuevalista();
+            lista *nueva_llave = nuevalista(llave);
             nueva_llave->head = agregar;
             indice[posicion] = nueva_llave;
         }
@@ -363,3 +365,6 @@ int main(int argc, char *argv[]){
 
     return EXIT_SUCCESS;
 }
+
+//Agregarle la palabra clave a la lista
+
