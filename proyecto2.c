@@ -282,6 +282,9 @@ Aun no esta lista
 
 void add_hash(contenedor* agregar, lista* indice[]){
     agregar->siguiente = NULL;
+    printf("------------------------------------------------\n");
+    printf("Se esta agregando la siguiente direccion: %s\n", agregar->direccion);
+    printf("------------------------------------------------\n");
     int posicion_inicial = strlen(agregar->direccion) - 1;
     while(agregar->direccion[posicion_inicial] != '/' && posicion_inicial != -1){
         posicion_inicial--;
@@ -295,8 +298,6 @@ void add_hash(contenedor* agregar, lista* indice[]){
         i++;
         posicion_inicial++;
     }
-
-    printf("%s\n", agregar->direccion);
 
     i = 0;
     while(i < strlen(palabra)){
@@ -393,10 +394,6 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
 int prueba = 0;
 
 void * leer_archivo(void * arg){
-    pthread_mutex_lock(&lock);
-
-    //Leer archivo aqui
-
     FILE *file = fopen(archivo_indice, "r");
 
     if(file != NULL){
@@ -413,7 +410,11 @@ void * leer_archivo(void * arg){
 
             printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
 
+            pthread_mutex_lock(&lock);
+
             add_hash(llaves, indice);
+
+            pthread_mutex_unlock(&lock);
 
             //Llenamos la tabla de hash de las direcciones visitadas
 
@@ -426,9 +427,14 @@ void * leer_archivo(void * arg){
 
             contenedor *direccion_leida = nuevo_contenedor(direccion_indice);
             unsigned int llave = hash(direccion_indice);
-            if(directorios_visitados[llave] == NULL)
+
+            if(directorios_visitados[llave] == NULL){
+                pthread_mutex_lock(&lock);
                 directorios_visitados[llave] = direccion_leida;
+                pthread_mutex_unlock(&lock);
+            }
             else{
+                pthread_mutex_lock(&lock);
                 contenedor *busqueda = directorios_visitados[llave];
                 int encontrado = 0;
 
@@ -440,6 +446,7 @@ void * leer_archivo(void * arg){
 
                 if(encontrado == 0 && strcmp(busqueda->direccion, direccion_leida->direccion) != 0)
                         busqueda->siguiente = direccion_leida;
+                pthread_mutex_unlock(&lock);
             }
 
             
@@ -448,12 +455,11 @@ void * leer_archivo(void * arg){
     }
     else{
         printf("El archivo %s no existe\n", archivo_indice);
-        if(add){
-            ftw(directorio_inicial, &buscar_archivos, 1);
-        }
     }
 
-    pthread_mutex_unlock(&lock);
+    if(add){
+        ftw(directorio_inicial, &buscar_archivos, 1);
+    }
 
     return EXIT_SUCCESS;
 
@@ -515,7 +521,7 @@ int main(int argc, char *argv[]){
     }
     */
 
-    int error = pthread_create(&(tid[0]), NULL, &leer_archivo, NULL);
+    int error = pthread_create(&(tid[0]), NULL, leer_archivo, NULL);
     if (error != 0)
         printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
 
@@ -524,16 +530,18 @@ int main(int argc, char *argv[]){
     pthread_join(tid[0], NULL);
     pthread_mutex_destroy(&lock);
 
-    contenedor *prueba = nuevo_contenedor("caminito de maiz.painting");
+    printf("AQUIIIIIIIIIIIIIIIIIIIIIIIIII\n");
+
+    contenedor *prueba = nuevo_contenedor("caminito con maiz.painting");
 
     add_hash(prueba, indice);
 
-    contenedor *prueba2 = nuevo_contenedor("caminote de perejil");
+    contenedor *prueba2 = nuevo_contenedor("que es eso de que de quede");
 
     add_hash(prueba2, indice);
 
     printf("%s\n", indice[hash("creeme")]->head->direccion);
-    printf("%s\n", indice[hash("caminito")]->head->siguiente->siguiente->direccion);
+    printf("%s\n", indice[hash("de")]->head->direccion);
     
 
     return EXIT_SUCCESS;
