@@ -272,10 +272,17 @@ void add_hash(contenedor* agregar, lista* indice[]){
 
             //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
             contenedor *lista_agregar = indice[posicion]->head;
-            while(lista_agregar->siguiente != NULL){
+            int direccion_ya_en_indice = 0;
+            while(lista_agregar->siguiente != NULL && direccion_ya_en_indice == 0){
+                if(strcmp(lista_agregar->direccion, agregar->direccion) == 0){
+                    direccion_ya_en_indice = 1;
+                }
                 lista_agregar = lista_agregar->siguiente;
             }
-            lista_agregar->siguiente = agregar;
+            if(direccion_ya_en_indice == 0 && strcmp(lista_agregar->direccion, agregar->direccion) != 0){
+                printf("Agregada direccion %s\n", agregar->direccion);
+                lista_agregar->siguiente = agregar;
+            }
         }
     }
 }
@@ -372,7 +379,7 @@ int main(int argc, char *argv[]){
     add_hash(prueba, indice);
 
     printf("%s\n", indice[hash("caminote")]->head->direccion);
-    printf("%s\n", indice[hash("maiz")]->head->direccion);
+    printf("%s\n", indice[hash("de")]->head->direccion);
 
     return EXIT_SUCCESS;
 }
