@@ -82,96 +82,6 @@ unsigned int hash(char* str) {
     return hash % 10000;
 }
 
-void add_hash(contenedor* agregar, lista* indice[]){
-
-    int posicion_inicial = strlen(agregar->direccion) - 1;
-    while(agregar->direccion[posicion_inicial] != '/' || posicion_inicial == -1){
-        posicion_inicial--;
-    }
-    posicion_inicial++;
-
-    int i = 0;
-    char palabra[10000];
-    while(posicion_inicial <= strlen(agregar->direccion)){
-        palabra[i] = agregar->direccion[posicion_inicial];
-        i++;
-        posicion_inicial++;
-    }
-
-    printf("%s\n", agregar->direccion);
-
-    i = 0;
-    while(i < strlen(palabra)){
-        char llave[10000];
-        int j = 0; 
-        while(i < strlen(palabra) && palabra[i] != ' ' && palabra[i] != '.'){
-            llave[j] = palabra[i];
-            i++;
-            j++;
-        }
-        llave[j] = '\0';
-        i++;
-
-        printf("%s\n", llave);
-
-        unsigned int posicion = hash(llave);
-
-        if(indice[posicion] == NULL){
-            lista *nueva_llave = nuevalista(llave);
-            nueva_llave->head = agregar;
-            indice[posicion] = nueva_llave;
-        }
-        else{
-            //Agregar elemento a lista
-
-            //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
-            contenedor *lista_agregar = indice[posicion]->head;
-            while(lista_agregar->siguiente != NULL){
-                lista_agregar = lista_agregar->siguiente;
-            }
-            lista_agregar->siguiente = agregar;
-        }
-    }
-}
-
-/*
-Funcion buscar_directorios(const char *name, const struct stat *inodo, int type)
-
-Parametros
-
-    nombre: const char            ||  String que contiene el path del directorio
-                                    actual
-    inodo: const struct stat    ||  Estructura stat que representa el inodo
-                                    del directorio o archivo actual
-    tipo: int                   ||  Entero que representa el tipo de elemento
-                                    actual
-
-Funcion que enviara los directorios hoja al proceso de lowercase para ser 
-parseados y verificados
-*/
-
-/*
-    INFORMACION DE INTERES
-
-    S_IFMT     0170000   bit mask for the file type bit field
-
-    S_IFSOCK   0140000   socket
-    S_IFLNK    0120000   symbolic link
-    S_IFREG    0100000   regular file
-    S_IFBLK    0060000   block device
-    S_IFDIR    0040000   directory
-    S_IFCHR    0020000   character device
-    S_IFIFO    0010000   FIFO
-*/
-
-int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
-    //Verificamos si el path actual corresponde a un archivo solo si esta el 
-    //flag de archivos prendido
-    if(((*inodo).st_mode & S_IFMT) == S_IFREG)
-        printf("Se encontro un archivo\n");
-
-    return 0;
-}
 
 /*
 Funcion espchars(char str[])
@@ -310,6 +220,105 @@ char * espchars(char str[]){
     }
     return str;
 }
+
+void add_hash(contenedor* agregar, lista* indice[]){
+
+    int posicion_inicial = strlen(agregar->direccion) - 1;
+    while(agregar->direccion[posicion_inicial] != '/' || posicion_inicial == -1){
+        posicion_inicial--;
+    }
+    posicion_inicial++;
+
+    int i = 0;
+    char palabra[10000];
+    while(posicion_inicial <= strlen(agregar->direccion)){
+        palabra[i] = agregar->direccion[posicion_inicial];
+        i++;
+        posicion_inicial++;
+    }
+
+    printf("%s\n", agregar->direccion);
+
+    i = 0;
+    while(i < strlen(palabra)){
+        char llave[10000];
+        int j = 0; 
+        while(i < strlen(palabra) && palabra[i] != ' ' && palabra[i] != '.'){
+            llave[j] = palabra[i];
+            i++;
+            j++;
+        }
+        llave[j] = '\0';
+        i++;
+
+
+        for(j = 0; j < strlen(llave); j++){
+            llave[j] = tolower(llave[j]);
+        }
+
+        espchars(llave);
+
+        printf("%s\n", llave);
+
+        unsigned int posicion = hash(llave);
+
+        if(indice[posicion] == NULL){
+            lista *nueva_llave = nuevalista(llave);
+            nueva_llave->head = agregar;
+            indice[posicion] = nueva_llave;
+        }
+        else{
+            //Agregar elemento a lista
+
+            //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
+            contenedor *lista_agregar = indice[posicion]->head;
+            while(lista_agregar->siguiente != NULL){
+                lista_agregar = lista_agregar->siguiente;
+            }
+            lista_agregar->siguiente = agregar;
+        }
+    }
+}
+
+/*
+Funcion buscar_directorios(const char *name, const struct stat *inodo, int type)
+
+Parametros
+
+    nombre: const char            ||  String que contiene el path del directorio
+                                    actual
+    inodo: const struct stat    ||  Estructura stat que representa el inodo
+                                    del directorio o archivo actual
+    tipo: int                   ||  Entero que representa el tipo de elemento
+                                    actual
+
+Funcion que enviara los directorios hoja al proceso de lowercase para ser 
+parseados y verificados
+*/
+
+/*
+    INFORMACION DE INTERES
+
+    S_IFMT     0170000   bit mask for the file type bit field
+
+    S_IFSOCK   0140000   socket
+    S_IFLNK    0120000   symbolic link
+    S_IFREG    0100000   regular file
+    S_IFBLK    0060000   block device
+    S_IFDIR    0040000   directory
+    S_IFCHR    0020000   character device
+    S_IFIFO    0010000   FIFO
+*/
+
+int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
+    //Verificamos si el path actual corresponde a un archivo solo si esta el 
+    //flag de archivos prendido
+    if(((*inodo).st_mode & S_IFMT) == S_IFREG)
+        printf("Se encontro un archivo\n");
+
+    return 0;
+}
+
 
 /*----------------------------------------------------------------------------
                                     Main
