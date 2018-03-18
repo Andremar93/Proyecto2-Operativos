@@ -281,7 +281,7 @@ Aun no esta lista
 */
 
 void add_hash(contenedor* agregar, lista* indice[]){
-
+    agregar->siguiente = NULL;
     int posicion_inicial = strlen(agregar->direccion) - 1;
     while(agregar->direccion[posicion_inicial] != '/' || posicion_inicial == -1){
         posicion_inicial--;
@@ -317,9 +317,12 @@ void add_hash(contenedor* agregar, lista* indice[]){
 
         espchars(llave);
 
-        printf("%s\n", llave);
+        printf("---------------------------\n");
 
         unsigned int posicion = hash(llave);
+
+        printf("llave: %s\n", llave);
+        printf("posicion: %d\n", posicion);
 
         if(indice[posicion] == NULL){
             lista *nueva_llave = nuevalista(llave);
@@ -331,6 +334,7 @@ void add_hash(contenedor* agregar, lista* indice[]){
 
             //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
             contenedor *lista_agregar = indice[posicion]->head;
+            printf("AQUI ESTO ES DEBIGGING%s\n", indice[posicion]->llave);
             int direccion_ya_en_indice = 0;
             while(lista_agregar->siguiente != NULL && direccion_ya_en_indice == 0){
                 if(strcmp(lista_agregar->direccion, agregar->direccion) == 0){
@@ -401,6 +405,24 @@ void * leer_archivo(void * arg){
         while(fgets(direccion_indice, 10000, file) != NULL){
             direccion_indice[strlen(direccion_indice)-1] = '\0';
             printf("%s\n", direccion_indice);
+
+            //Llenamos la tabla de hash de palabras claves
+
+            contenedor *llaves = nuevo_contenedor(direccion_indice);
+
+            printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
+
+            add_hash(llaves, indice);
+
+            //Llenamos la tabla de hash de las direcciones visitadas
+
+            int i = strlen(direccion_indice);
+            while(i != 0 && direccion_indice[i] != '/')
+                i--;
+
+            direccion_indice[i] = '\0';
+            printf("%s\n", direccion_indice);
+
             contenedor *direccion_leida = nuevo_contenedor(direccion_indice);
             unsigned int llave = hash(direccion_indice);
             if(directorios_visitados[llave] == NULL)
@@ -408,14 +430,18 @@ void * leer_archivo(void * arg){
             else{
                 contenedor *busqueda = directorios_visitados[llave];
                 int encontrado = 0;
+
                 while(busqueda->siguiente != NULL && encontrado == 0){
                     if(strcmp(busqueda->direccion, direccion_leida->direccion) == 0)
                         encontrado = 1;
                     busqueda = busqueda->siguiente;
                 }
+
                 if(encontrado == 0 && strcmp(busqueda->direccion, direccion_leida->direccion) != 0)
                         busqueda->siguiente = direccion_leida;
             }
+
+            
 
         }
     }
@@ -428,7 +454,7 @@ void * leer_archivo(void * arg){
 
     pthread_mutex_unlock(&lock);
 
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 
 }
 
@@ -469,17 +495,9 @@ int main(int argc, char *argv[]){
 
     //Como llamar el ftw
     //ftw(directorio_inicial, &buscar_archivos, 1);
-    
-    contenedor *prueba = nuevo_contenedor("/caminito de maiz.painting");
 
-    add_hash(prueba, indice);
-
-    prueba = nuevo_contenedor("/caminote de perejil");
-
-    add_hash(prueba, indice);
-
-    printf("%s\n", indice[hash("caminote")]->head->direccion);
-    printf("%s\n", indice[hash("de")]->head->direccion);
+    //printf("%s\n", indice[hash("caminote")]->head->direccion);
+    //printf("%s\n", indice[hash("de")]->head->direccion);
 
     if (pthread_mutex_init(&lock, NULL) != 0){
         printf("\n Fallo al inicializar el mutex lock \n");
@@ -501,7 +519,21 @@ int main(int argc, char *argv[]){
         printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
 
     //Esperamos a que todos los hilos finalicen
-    pthread_exit(0);
+
+    pthread_join(tid[0], NULL);
+    pthread_mutex_destroy(&lock);
+
+    contenedor *prueba = nuevo_contenedor("/caminito de maiz.painting");
+
+    add_hash(prueba, indice);
+
+    contenedor *prueba2 = nuevo_contenedor("/caminote de perejil");
+
+    add_hash(prueba2, indice);
+
+    printf("%s\n", indice[hash("creeme")]->head->direccion);
+    printf("%s\n", indice[hash("caminito")]->head->siguiente->siguiente->direccion);
+    
 
     return EXIT_SUCCESS;
 }
