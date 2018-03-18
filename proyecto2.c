@@ -104,7 +104,7 @@ void add_hash(contenedor* agregar, lista* indice[]){
     while(i < strlen(palabra)){
         char llave[10000];
         int j = 0; 
-        while(i < strlen(palabra) && palabra[i] != ' '){
+        while(i < strlen(palabra) && palabra[i] != ' ' && palabra[i] != '.'){
             llave[j] = palabra[i];
             i++;
             j++;
@@ -123,6 +123,8 @@ void add_hash(contenedor* agregar, lista* indice[]){
         }
         else{
             //Agregar elemento a lista
+
+            //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
             contenedor *lista_agregar = indice[posicion]->head;
             while(lista_agregar->siguiente != NULL){
                 lista_agregar = lista_agregar->siguiente;
@@ -352,7 +354,7 @@ int main(int argc, char *argv[]){
     printf("Archivo indice: %s\n", archivo_indice);
 
     
-    contenedor *prueba = nuevo_contenedor("/caminito de maiz");
+    contenedor *prueba = nuevo_contenedor("/caminito de maiz.painting");
 
     add_hash(prueba, indice);
 
