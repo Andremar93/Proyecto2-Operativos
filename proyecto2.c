@@ -16,15 +16,11 @@ Autores:
 #include<unistd.h>
 #include<ftw.h>
 #include<dirent.h>
+#include<pthread.h>
 
 /*----------------------------------------------------------------------------
-                                Globales
+                                Estructuras
 ----------------------------------------------------------------------------*/
-char directorio_inicial[10000];
-int altura_maxima = 20;
-char archivo_indice[10000] = "indice.txt";
-int update = 1;
-int add = 1;
 
 typedef struct contenedor{
     char direccion[10000];
@@ -35,6 +31,39 @@ typedef struct lista{
     char llave[10000];
     contenedor *head;
 }lista;
+
+/*----------------------------------------------------------------------------
+                                Globales
+----------------------------------------------------------------------------*/
+/*
+directorio_inicial: Contiene la direccion del directorio donde se iniciara la 
+busqueda para la indizacion
+
+altura_maxima: contiene la altura maxima de profundidad a la hora de buscar 
+nuevos archivos para su introduccion en el indice
+
+archivo_indice: Contiene el nombre del archivo que contiene el indice previa-
+mente establecido para su devolucion en busquedas
+
+update: Variable que indica que no se debe entrar en los directorio que ya 
+estan en el indice
+
+add: Indica que no se debe entrar en los directorios que no esten en el indice
+
+indice: arreglo que contiene las direcciones de los objetos que contienen la
+informacion de los archivos pertenecientes al indice.
+*/
+
+char directorio_inicial[10000];
+int altura_maxima = 20;
+char archivo_indice[10000] = "indice.txt";
+int update = 1;
+int add = 1;
+lista *indice[10000];
+
+//La lista siguiente pienso utilizarla para llevar cuenta de los directorios visitados
+//y asi poder trabajar con add y update
+//lista *directorios_visitados[10000]; 
 
 /*----------------------------------------------------------------------------
                                 Funciones
@@ -57,6 +86,17 @@ lista * nuevalista(char *llave){
     return nueva_lista;
 }
 
+/*
+Funcion nuevo_contenedor(char* path)
+
+Parametros
+
+    path: char  ||  String que contiene la direccion del archivo encontrado.
+
+Funcion que crea una nueva estructura contenedor, que contiene la direccion 
+del archivo deseado
+*/
+
 contenedor * nuevo_contenedor(char* path){
     contenedor *nuevo = (contenedor*) malloc(sizeof(contenedor));
     strcpy(nuevo->direccion, path);
@@ -64,9 +104,16 @@ contenedor * nuevo_contenedor(char* path){
     return nuevo;
 }
 
-void insertarContenedor(lista *presentes, contenedor *insertar){
+/*
+Funcion hash(char* str)
 
-}
+Parametros
+
+    str: char   ||  String que contiene la llave a la cual se le calculara
+                    la posicion en la tabla de hash
+
+Funcion que calcula la llave de hash para las palabras claves
+*/
 
 unsigned int hash(char* str) {
     unsigned int length = strlen(str);
@@ -221,6 +268,16 @@ char * espchars(char str[]){
     return str;
 }
 
+/*
+Funcion add_hash(contenedor* agregar, lista* indice[])
+
+Parametros
+
+    None
+
+Aun no esta lista
+*/
+
 void add_hash(contenedor* agregar, lista* indice[]){
 
     int posicion_inicial = strlen(agregar->direccion) - 1;
@@ -333,8 +390,6 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
 
 int main(int argc, char *argv[]){
     getcwd(directorio_inicial, 10000);
-
-    lista *indice[10000];
 
     //Leemos todos los flags correspondientes y cambiamos las variables 
     //globales para manejarlos
