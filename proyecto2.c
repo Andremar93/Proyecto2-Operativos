@@ -283,7 +283,7 @@ Aun no esta lista
 void add_hash(contenedor* agregar, lista* indice[]){
     agregar->siguiente = NULL;
     int posicion_inicial = strlen(agregar->direccion) - 1;
-    while(agregar->direccion[posicion_inicial] != '/' || posicion_inicial == -1){
+    while(agregar->direccion[posicion_inicial] != '/' && posicion_inicial != -1){
         posicion_inicial--;
     }
     posicion_inicial++;
@@ -326,6 +326,7 @@ void add_hash(contenedor* agregar, lista* indice[]){
 
         if(indice[posicion] == NULL){
             lista *nueva_llave = nuevalista(llave);
+            printf("La lista creada tiene llave: %s\n", nueva_llave->llave);
             nueva_llave->head = agregar;
             indice[posicion] = nueva_llave;
         }
@@ -523,11 +524,11 @@ int main(int argc, char *argv[]){
     pthread_join(tid[0], NULL);
     pthread_mutex_destroy(&lock);
 
-    contenedor *prueba = nuevo_contenedor("/caminito de maiz.painting");
+    contenedor *prueba = nuevo_contenedor("caminito de maiz.painting");
 
     add_hash(prueba, indice);
 
-    contenedor *prueba2 = nuevo_contenedor("/caminote de perejil");
+    contenedor *prueba2 = nuevo_contenedor("caminote de perejil");
 
     add_hash(prueba2, indice);
 
