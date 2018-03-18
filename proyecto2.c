@@ -60,10 +60,12 @@ char archivo_indice[10000] = "indice.txt";
 int update = 1;
 int add = 1;
 lista *indice[10000];
+pthread_mutex_t lock;
+pthread_t tid[3]; //Direcciones de los hilos
 
 //La lista siguiente pienso utilizarla para llevar cuenta de los directorios visitados
 //y asi poder trabajar con add y update
-//lista *directorios_visitados[10000]; 
+contenedor *directorios_visitados[10000]; 
 
 /*----------------------------------------------------------------------------
                                 Funciones
@@ -378,9 +380,56 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
     //Verificamos si el path actual corresponde a un archivo solo si esta el 
     //flag de archivos prendido
     if(((*inodo).st_mode & S_IFMT) == S_IFREG)
-        printf("Se encontro un archivo\n");
+        printf("Se encontro un archivo: %s\n", nombre);
 
     return 0;
+}
+
+int prueba = 0;
+
+void * leer_archivo(void * arg){
+    pthread_mutex_lock(&lock);
+
+    //Leer archivo aqui
+
+    FILE *file = fopen(archivo_indice, "r");
+
+    if(file != NULL){
+        //Aqui se leen los paths en el indice y se parsean debidamente
+        char direccion_indice[10000];
+
+        while(fgets(direccion_indice, 10000, file) != NULL){
+            direccion_indice[strlen(direccion_indice)-1] = '\0';
+            printf("%s\n", direccion_indice);
+            contenedor *direccion_leida = nuevo_contenedor(direccion_indice);
+            unsigned int llave = hash(direccion_indice);
+            if(directorios_visitados[llave] == NULL)
+                directorios_visitados[llave] = direccion_leida;
+            else{
+                contenedor *busqueda = directorios_visitados[llave];
+                int encontrado = 0;
+                while(busqueda->siguiente != NULL && encontrado == 0){
+                    if(strcmp(busqueda->direccion, direccion_leida->direccion) == 0)
+                        encontrado = 1;
+                    busqueda = busqueda->siguiente;
+                }
+                if(encontrado == 0 && strcmp(busqueda->direccion, direccion_leida->direccion) != 0)
+                        busqueda->siguiente = direccion_leida;
+            }
+
+        }
+    }
+    else{
+        printf("El archivo %s no existe\n", archivo_indice);
+        if(add){
+            ftw(directorio_inicial, &buscar_archivos, 1);
+        }
+    }
+
+    pthread_mutex_unlock(&lock);
+
+    exit(EXIT_SUCCESS);
+
 }
 
 
@@ -417,13 +466,9 @@ int main(int argc, char *argv[]){
         i++;
     }
 
-    printf("i, argc: %d %d\n", i, argc);
-    printf("update: %d\n", update);
-    printf("add: %d\n", add);
-    printf("altura maxima: %d\n", altura_maxima);
-    printf("Directorio inicial: %s\n", directorio_inicial);
-    printf("Archivo indice: %s\n", archivo_indice);
 
+    //Como llamar el ftw
+    //ftw(directorio_inicial, &buscar_archivos, 1);
     
     contenedor *prueba = nuevo_contenedor("/caminito de maiz.painting");
 
@@ -436,8 +481,37 @@ int main(int argc, char *argv[]){
     printf("%s\n", indice[hash("caminote")]->head->direccion);
     printf("%s\n", indice[hash("de")]->head->direccion);
 
+    if (pthread_mutex_init(&lock, NULL) != 0){
+        printf("\n Fallo al inicializar el mutex lock \n");
+        return EXIT_FAILURE;
+    }
+    /*
+    i = 0;
+    int error;
+    while(i < 2){
+        error = pthread_create(&(tid[i]), NULL, &leer_archivo, NULL);
+        if (error != 0)
+            printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
+        i++;
+    }
+    */
+
+    int error = pthread_create(&(tid[0]), NULL, &leer_archivo, NULL);
+    if (error != 0)
+        printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
+
+    //Esperamos a que todos los hilos finalicen
+    pthread_exit(0);
+
     return EXIT_SUCCESS;
 }
 
-//Agregarle la palabra clave a la lista
-
+/*
+Pruebas de parametros de entrada
+printf("i, argc: %d %d\n", i, argc);
+    printf("update: %d\n", update);
+    printf("add: %d\n", add);
+    printf("altura maxima: %d\n", altura_maxima);
+    printf("Directorio inicial: %s\n", directorio_inicial);
+    printf("Archivo indice: %s\n", archivo_indice);
+*/
