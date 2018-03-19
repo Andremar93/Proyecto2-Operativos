@@ -410,71 +410,85 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
         char direccion_archivo[10000];
         strcpy(direccion_parseo, nombre);
         strcpy(direccion_archivo, nombre);
-        //printf("%s\n", direccion_parseo);
-        int posicion_inicial = strlen(direccion_parseo) - 1;
-        while(direccion_parseo[posicion_inicial] != '/' && posicion_inicial != 0){
-            posicion_inicial--;
+        int i = 1;
+        int altura = 0;
+        while(i <= strlen(direccion_archivo)){
+            if(direccion_archivo[i] == '/')
+                altura++;
+            i++;
         }
-        direccion_parseo[posicion_inicial] = '\0';
-        //printf("%s\n", direccion_archivo);
-        pthread_mutex_lock(&lock);
-        if(update && directorios_visitados[hash(direccion_parseo)] != NULL){
-            char nombre_archivo[10000];
-            int i = 0;
-            posicion_inicial++;
-            while(posicion_inicial < strlen(direccion_archivo)){
-                nombre_archivo[i] = direccion_archivo[posicion_inicial];
+
+        if(altura < altura_maxima){
+            //printf("%s\n", direccion_parseo);
+            int posicion_inicial = strlen(direccion_parseo) - 1;
+            while(direccion_parseo[posicion_inicial] != '/' && posicion_inicial != 0){
+                posicion_inicial--;
+            }
+            direccion_parseo[posicion_inicial] = '\0';
+            //printf("%s\n", direccion_archivo);
+            pthread_mutex_lock(&lock);
+            if(update && directorios_visitados[hash(direccion_parseo)] != NULL){
+                char nombre_archivo[10000];
+                int i = 0;
                 posicion_inicial++;
-                i++;
-            }
-            nombre_archivo[i] = '\0';
-            //printf("%s\n", nombre_archivo);
-            i = 0;
-            while(i < strlen(nombre_archivo) && nombre_archivo[i] != '.' && nombre_archivo[i] != ' '){
-                i++;
-            }
-            nombre_archivo[i] = '\0';
-            i = 0;
-            while(i < strlen(nombre_archivo)){
-                nombre_archivo[i] = tolower(nombre_archivo[i]);
-                i++;
-            }
+                while(posicion_inicial < strlen(direccion_archivo)){
+                    nombre_archivo[i] = direccion_archivo[posicion_inicial];
+                    posicion_inicial++;
+                    i++;
+                }
+                nombre_archivo[i] = '\0';
+                //printf("%s\n", nombre_archivo);
+                i = 0;
+                while(i < strlen(nombre_archivo) && nombre_archivo[i] != '.' && nombre_archivo[i] != ' '){
+                    i++;
+                }
+                nombre_archivo[i] = '\0';
+                i = 0;
+                while(i < strlen(nombre_archivo)){
+                    nombre_archivo[i] = tolower(nombre_archivo[i]);
+                    i++;
+                }
 
-            espchars(nombre_archivo);
+                espchars(nombre_archivo);
 
-            //printf("%s\n", nombre_archivo);
+                //printf("%s\n", nombre_archivo);
 
-            lista *revisar = indice[hash(nombre_archivo)];
-            int conseguido = 0;
-            if(revisar != NULL){
-                contenedor *revisar_contenedor = revisar->head;
-                while(conseguido == 0 && revisar_contenedor != NULL){
-                    printf("%d\n", strcmp(revisar_contenedor->direccion, direccion_archivo));
-                    if(strcmp(revisar_contenedor->direccion, direccion_archivo) == 0)
-                        conseguido = 1;
-                    revisar_contenedor = revisar_contenedor->siguiente;
+                int posicion = hash(nombre_archivo);
+                lista *revisar = indice[posicion];
+                while(revisar != NULL && posicion < 10000 && strcmp(revisar->llave, nombre_archivo) != 0)
+                    posicion++;
+                int conseguido = 0;
+                if(revisar != NULL){
+                    contenedor *revisar_contenedor = revisar->head;
+                    while(conseguido == 0 && revisar_contenedor != NULL){
+                        //printf("%d\n", strcmp(revisar_contenedor->direccion, direccion_archivo));
+                        if(strcmp(revisar_contenedor->direccion, direccion_archivo) == 0)
+                            conseguido = 1;
+                        revisar_contenedor = revisar_contenedor->siguiente;
+                    }
+                
+                    if(conseguido == 0){
+                        contenedor *agregar = nuevo_contenedor(direccion_archivo);
+                        direccion_archivo[strlen(direccion_archivo)+1] = '\0';
+                        direccion_archivo[strlen(direccion_archivo)] = '\n';
+                        FILE *file = fopen(archivo_indice, "a+");
+                        fputs(direccion_archivo, file);
+                        fclose(file);
+                        pthread_create(&(tid), NULL, add_hash, (void *)agregar);
+                    }
                 }
             }
-            if(conseguido == 0){
+            else if(add && directorios_visitados[hash(direccion_parseo)] == NULL){
                 direccion_archivo[strlen(direccion_archivo)+1] = '\0';
                 direccion_archivo[strlen(direccion_archivo)] = '\n';
-                FILE *file = fopen(archivo_indice, "a+");
+                FILE *file = fopen(archivo_indice, "a");
                 fputs(direccion_archivo, file);
                 fclose(file);
                 contenedor *agregar = nuevo_contenedor(direccion_archivo);
                 pthread_create(&(tid), NULL, add_hash, (void *)agregar);
             }
+            pthread_mutex_unlock(&lock);
         }
-        else if(add && directorios_visitados[hash(direccion_parseo)] == NULL){
-            direccion_archivo[strlen(direccion_archivo)+1] = '\0';
-            direccion_archivo[strlen(direccion_archivo)] = '\n';
-            FILE *file = fopen(archivo_indice, "a");
-            fputs(direccion_archivo, file);
-            fclose(file);
-            contenedor *agregar = nuevo_contenedor(direccion_archivo);
-            pthread_create(&(tid), NULL, add_hash, (void *)agregar);
-        }
-        pthread_mutex_unlock(&lock);
     }
 
 
@@ -595,6 +609,12 @@ int main(int argc, char *argv[]){
     char busqueda[10000];
     strcpy(busqueda, argv[argc-1]);
 
+    i = 1;
+    while(i < strlen(directorio_inicial)){
+        if(directorio_inicial[i] == '/')
+            altura_maxima++;
+        i++;
+    }
     //Como llamar el ftw
     //ftw(directorio_inicial, &buscar_archivos, 1);
 
@@ -654,6 +674,8 @@ int main(int argc, char *argv[]){
         }
     }
 
+    printf("%s\n", indice[hash("76ab29ffeacb7d4baf0ace5ba07fd3864db521")+1]->llave);
+
     return EXIT_SUCCESS;
 }
 
@@ -661,7 +683,7 @@ int main(int argc, char *argv[]){
 
 /*
 Pruebas de parametros de entrada
-printf("i, argc: %d %d\n", i, argc);
+    printf("i, argc: %d %d\n", i, argc);
     printf("update: %d\n", update);
     printf("add: %d\n", add);
     printf("altura maxima: %d\n", altura_maxima);
