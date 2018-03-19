@@ -280,7 +280,8 @@ Parametros
 Aun no esta lista
 */
 
-void add_hash(contenedor* agregar){
+void * add_hash(void* arg){
+    contenedor *agregar = (contenedor *)arg;
     agregar->siguiente = NULL;
     /*
     printf("------------------------------------------------\n");
@@ -326,7 +327,7 @@ void add_hash(contenedor* agregar){
 
         printf("llave: %s\n", llave);
         printf("posicion: %d\n", posicion);
-
+        pthread_mutex_lock(&lock);
         if(indice[posicion] == NULL){
             lista *nueva_llave = nuevalista(llave);
             printf("La lista creada tiene llave: %s\n", nueva_llave->llave);
@@ -353,7 +354,10 @@ void add_hash(contenedor* agregar){
                 lista_agregar->siguiente = agregar;
             }
         }
+        pthread_mutex_unlock(&lock);
     }
+
+    return EXIT_SUCCESS;
 }
 
 /*
@@ -446,7 +450,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
                 fputs(direccion_archivo, file);
                 fclose(file);
                 contenedor *agregar = nuevo_contenedor(direccion_archivo);
-                add_hash(agregar);
+                pthread_create(&(tid[0]), NULL, add_hash, (void *)agregar);
             }
         }
         else if(add && directorios_visitados[hash(direccion_parseo)] == NULL){
@@ -456,7 +460,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
             fputs(direccion_archivo, file);
             fclose(file);
             contenedor *agregar = nuevo_contenedor(direccion_archivo);
-            add_hash(agregar);
+            pthread_create(&(tid[0]), NULL, add_hash, (void *)agregar);
         }
 
     }
@@ -484,11 +488,7 @@ void * leer_archivo(void * arg){
 
             printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
 
-            pthread_mutex_lock(&lock);
-
-            add_hash(llaves);
-
-            pthread_mutex_unlock(&lock);
+            pthread_create(&(tid[0]), NULL, add_hash, (void *)llaves);
 
             //Llenamos la tabla de hash de las direcciones visitadas
 
@@ -608,8 +608,10 @@ int main(int argc, char *argv[]){
 
     //Esperamos a que todos los hilos finalicen
 
-    pthread_join(tid[0], NULL);
+    pthread_exit(0);
     pthread_mutex_destroy(&lock);
+
+    printf("FINALIZADO\n");
     /*
     contenedor *prueba = nuevo_contenedor("caminito con maiz.painting");
 
