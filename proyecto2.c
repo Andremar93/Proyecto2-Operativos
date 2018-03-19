@@ -62,6 +62,7 @@ int add = 1;
 lista *indice[10000];
 pthread_mutex_t lock;
 pthread_t tid; //Direcciones de los hilos
+pthread_t tid_maestro;
 
 //La lista siguiente pienso utilizarla para llevar cuenta de los directorios visitados
 //y asi poder trabajar con add y update
@@ -602,12 +603,13 @@ int main(int argc, char *argv[]){
     }
     */
 
-    int error = pthread_create(&(tid), NULL, leer_archivo, NULL);
+    int error = pthread_create(&(tid_maestro), NULL, leer_archivo, NULL);
     if (error != 0)
         printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
 
     //Esperamos a que todos los hilos finalicen
 
+    pthread_join(tid_maestro, NULL);
     pthread_join(tid, NULL);
     pthread_mutex_destroy(&lock);
 
@@ -627,6 +629,8 @@ int main(int argc, char *argv[]){
 
     return EXIT_SUCCESS;
 }
+
+//FALTA LA ALTURA
 
 /*
 Pruebas de parametros de entrada
