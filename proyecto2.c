@@ -52,6 +52,16 @@ add: Indica que no se debe entrar en los directorios que no esten en el indice
 
 indice: arreglo que contiene las direcciones de los objetos que contienen la
 informacion de los archivos pertenecientes al indice.
+
+lock: Variable que contiene el mutex lock para la exclusion mutua
+
+tid: Variable que contendra la direccion del ultimo hilo iniciado
+
+tid_maestro: variable que contiene la direccion del hilo que se encarga de
+crear todos los demas hilos
+
+directorios_visitados: tabla de hash que contiene las direcciones de los 
+directorios que ya han sido visitados en el indice
 */
 
 char directorio_inicial[10000];
@@ -63,9 +73,6 @@ lista *indice[10000];
 pthread_mutex_t lock;
 pthread_t tid; //Direcciones de los hilos
 pthread_t tid_maestro;
-
-//La lista siguiente pienso utilizarla para llevar cuenta de los directorios visitados
-//y asi poder trabajar con add y update
 contenedor *directorios_visitados[10000]; 
 
 /*----------------------------------------------------------------------------
@@ -322,36 +329,40 @@ void * add_hash(void* arg){
 
         espchars(llave);
 
-        printf("---------------------------\n");
+        //printf("---------------------------\n");
 
         unsigned int posicion = hash(llave);
 
-        printf("llave: %s\n", llave);
-        printf("posicion: %d\n", posicion);
+        //printf("llave: %s\n", llave);
+        //printf("posicion: %d\n", posicion);
         pthread_mutex_lock(&lock);
+        while(indice[posicion] != NULL && posicion < 10000 && strcmp(llave, indice[posicion]->llave) != 0)
+            posicion++;
+
         if(indice[posicion] == NULL){
             lista *nueva_llave = nuevalista(llave);
-            printf("La lista creada tiene llave: %s\n", nueva_llave->llave);
+            //printf("La lista creada tiene llave: %s\n", nueva_llave->llave);
             nueva_llave->head = agregar;
             indice[posicion] = nueva_llave;
         }
-        else{
+        else if(strcmp(llave, indice[posicion]->llave) == 0){
             //Agregar elemento a lista
 
             //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
             contenedor *lista_agregar = indice[posicion]->head;
-            printf("AQUI ESTO ES DEBIGGING%s\n", indice[posicion]->llave);
+            //printf("La comparacion al agregar la llave es: %d\n",strcmp(indice[posicion]->llave, llave));
+            //printf("AQUI ESTO ES DEBIGGING%s\n", indice[posicion]->llave);
             int direccion_ya_en_indice = 0;
             while(lista_agregar->siguiente != NULL && direccion_ya_en_indice == 0){
-                printf("%s\n", lista_agregar->direccion);
+                //printf("%s\n", lista_agregar->direccion);
                 if(strcmp(lista_agregar->direccion, agregar->direccion) == 0){
                     direccion_ya_en_indice = 1;
                 }
                 lista_agregar = lista_agregar->siguiente;
             }
             if(direccion_ya_en_indice == 0 && strcmp(lista_agregar->direccion, agregar->direccion) != 0){
-                printf("Agregada direccion %s\n", agregar->direccion);
-                printf("%s\n", lista_agregar->direccion);
+                //printf("Agregada direccion %s\n", agregar->direccion);
+                //printf("%s\n", lista_agregar->direccion);
                 lista_agregar->siguiente = agregar;
             }
         }
@@ -399,14 +410,14 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
         char direccion_archivo[10000];
         strcpy(direccion_parseo, nombre);
         strcpy(direccion_archivo, nombre);
-        printf("%s\n", direccion_parseo);
+        //printf("%s\n", direccion_parseo);
         int posicion_inicial = strlen(direccion_parseo) - 1;
-        while(direccion_parseo[posicion_inicial] != '/' && posicion_inicial != -1){
+        while(direccion_parseo[posicion_inicial] != '/' && posicion_inicial != 0){
             posicion_inicial--;
         }
         direccion_parseo[posicion_inicial] = '\0';
-        printf("%s\n", direccion_archivo);
-
+        //printf("%s\n", direccion_archivo);
+        pthread_mutex_lock(&lock);
         if(update && directorios_visitados[hash(direccion_parseo)] != NULL){
             char nombre_archivo[10000];
             int i = 0;
@@ -417,7 +428,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
                 i++;
             }
             nombre_archivo[i] = '\0';
-            printf("%s\n", nombre_archivo);
+            //printf("%s\n", nombre_archivo);
             i = 0;
             while(i < strlen(nombre_archivo) && nombre_archivo[i] != '.' && nombre_archivo[i] != ' '){
                 i++;
@@ -431,7 +442,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
 
             espchars(nombre_archivo);
 
-            printf("%s\n", nombre_archivo);
+            //printf("%s\n", nombre_archivo);
 
             lista *revisar = indice[hash(nombre_archivo)];
             int conseguido = 0;
@@ -463,7 +474,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
             contenedor *agregar = nuevo_contenedor(direccion_archivo);
             pthread_create(&(tid), NULL, add_hash, (void *)agregar);
         }
-
+        pthread_mutex_unlock(&lock);
     }
 
 
@@ -481,13 +492,13 @@ void * leer_archivo(void * arg){
 
         while(fgets(direccion_indice, 10000, file) != NULL){
             direccion_indice[strlen(direccion_indice)-1] = '\0';
-            printf("%s\n", direccion_indice);
+            //printf("%s\n", direccion_indice);
 
             //Llenamos la tabla de hash de palabras claves
 
             contenedor *llaves = nuevo_contenedor(direccion_indice);
 
-            printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
+            //printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
 
             pthread_create(&(tid), NULL, add_hash, (void *)llaves);
 
@@ -498,18 +509,15 @@ void * leer_archivo(void * arg){
                 i--;
 
             direccion_indice[i] = '\0';
-            printf("%s\n", direccion_indice);
+            //printf("%s\n", direccion_indice);
 
             contenedor *direccion_leida = nuevo_contenedor(direccion_indice);
             unsigned int llave = hash(direccion_indice);
-
+            pthread_mutex_lock(&lock);
             if(directorios_visitados[llave] == NULL){
-                pthread_mutex_lock(&lock);
                 directorios_visitados[llave] = direccion_leida;
-                pthread_mutex_unlock(&lock);
             }
             else{
-                pthread_mutex_lock(&lock);
                 contenedor *busqueda = directorios_visitados[llave];
                 int encontrado = 0;
 
@@ -521,16 +529,14 @@ void * leer_archivo(void * arg){
 
                 if(encontrado == 0 && strcmp(busqueda->direccion, direccion_leida->direccion) != 0)
                         busqueda->siguiente = direccion_leida;
-                pthread_mutex_unlock(&lock);
             }
+            pthread_mutex_unlock(&lock);
         }
         fclose(file);
     }
-    else{
-        printf("El archivo %s no existe\n", archivo_indice);
-    }
 
     if(add || update){
+        /*
         printf("------------------------------------------------------------------------------------------------\n");
         printf("------------------------------------------------------------------------------------------------\n");
         printf("------------------------------------------------------------------------------------------------\n");
@@ -538,9 +544,8 @@ void * leer_archivo(void * arg){
         printf("------------------------------------------------------------------------------------------------\n");
         printf("------------------------------------------------------------------------------------------------\n");
         printf("------------------------------------------------------------------------------------------------\n");
-        pthread_mutex_lock(&lock);
+        */
         ftw(directorio_inicial, &buscar_archivos, 1);
-        pthread_mutex_unlock(&lock);
     }
 
     return EXIT_SUCCESS;
@@ -557,8 +562,15 @@ int main(int argc, char *argv[]){
 
     //Leemos todos los flags correspondientes y cambiamos las variables 
     //globales para manejarlos
+    if(argc <= 1){
+        printf("Faltan argumentos\n");
+        return EXIT_FAILURE;
+    }
+    if(argc > 10){
+        printf("Demasiados argumentos\n");
+        return EXIT_FAILURE;
+    }
     int i = 0;
-    printf("%d\n", argc);
     while(i < argc){
         if(strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--dir") == 0){
             i++;
@@ -580,7 +592,8 @@ int main(int argc, char *argv[]){
         }
         i++;
     }
-
+    char busqueda[10000];
+    strcpy(busqueda, argv[argc-1]);
 
     //Como llamar el ftw
     //ftw(directorio_inicial, &buscar_archivos, 1);
@@ -604,8 +617,10 @@ int main(int argc, char *argv[]){
     */
 
     int error = pthread_create(&(tid_maestro), NULL, leer_archivo, NULL);
-    if (error != 0)
+    if (error != 0){
         printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
+        return EXIT_FAILURE;
+    }
 
     //Esperamos a que todos los hilos finalicen
 
@@ -613,7 +628,8 @@ int main(int argc, char *argv[]){
     pthread_join(tid, NULL);
     pthread_mutex_destroy(&lock);
 
-    printf("FINALIZADO\n");
+    //printf("FINALIZADO\n");
+
     /*
     contenedor *prueba = nuevo_contenedor("caminito con maiz.painting");
 
@@ -625,7 +641,18 @@ int main(int argc, char *argv[]){
     */
     //printf("%s\n", indice[hash("creeme")]->head->direccion);
     //printf("%s\n", indice[hash("con")]->head->direccion);
-    
+
+    int posicion_busqueda = hash(busqueda);
+    while(indice[posicion_busqueda] != NULL && posicion_busqueda < 10000 && strcmp(indice[posicion_busqueda]->llave, busqueda) != 0){
+        posicion_busqueda++;
+    }
+    if(indice[posicion_busqueda] != NULL && strcmp(indice[posicion_busqueda]->llave, busqueda) == 0){
+        contenedor* impresion = indice[posicion_busqueda]->head;
+        while(impresion != NULL){
+            printf("%s\n", impresion->direccion);
+            impresion = impresion->siguiente;
+        }
+    }
 
     return EXIT_SUCCESS;
 }
