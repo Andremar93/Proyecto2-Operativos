@@ -271,7 +271,7 @@ char * espchars(char str[]){
 }
 
 /*
-Funcion add_hash(contenedor* agregar, lista* indice[])
+Funcion add_hash(contenedor* agregar)
 
 Parametros
 
@@ -280,7 +280,7 @@ Parametros
 Aun no esta lista
 */
 
-void add_hash(contenedor* agregar, lista* indice[]){
+void add_hash(contenedor* agregar){
     agregar->siguiente = NULL;
     /*
     printf("------------------------------------------------\n");
@@ -446,7 +446,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
                 fputs(direccion_archivo, file);
                 fclose(file);
                 contenedor *agregar = nuevo_contenedor(direccion_archivo);
-                add_hash(agregar, indice);
+                add_hash(agregar);
             }
         }
         else if(add && directorios_visitados[hash(direccion_parseo)] == NULL){
@@ -456,7 +456,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
             fputs(direccion_archivo, file);
             fclose(file);
             contenedor *agregar = nuevo_contenedor(direccion_archivo);
-            add_hash(agregar, indice);
+            add_hash(agregar);
         }
 
     }
@@ -486,7 +486,7 @@ void * leer_archivo(void * arg){
 
             pthread_mutex_lock(&lock);
 
-            add_hash(llaves, indice);
+            add_hash(llaves);
 
             pthread_mutex_unlock(&lock);
 
@@ -613,11 +613,11 @@ int main(int argc, char *argv[]){
     /*
     contenedor *prueba = nuevo_contenedor("caminito con maiz.painting");
 
-    add_hash(prueba, indice);
+    add_hash(prueba);
 
     contenedor *prueba2 = nuevo_contenedor("que es eso de que de quede");
 
-    add_hash(prueba2, indice);
+    add_hash(prueba2);
     */
     //printf("%s\n", indice[hash("creeme")]->head->direccion);
     //printf("%s\n", indice[hash("con")]->head->direccion);
