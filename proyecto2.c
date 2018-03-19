@@ -61,7 +61,7 @@ int update = 1;
 int add = 1;
 lista *indice[10000];
 pthread_mutex_t lock;
-pthread_t tid[3]; //Direcciones de los hilos
+pthread_t tid; //Direcciones de los hilos
 
 //La lista siguiente pienso utilizarla para llevar cuenta de los directorios visitados
 //y asi poder trabajar con add y update
@@ -450,7 +450,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
                 fputs(direccion_archivo, file);
                 fclose(file);
                 contenedor *agregar = nuevo_contenedor(direccion_archivo);
-                pthread_create(&(tid[0]), NULL, add_hash, (void *)agregar);
+                pthread_create(&(tid), NULL, add_hash, (void *)agregar);
             }
         }
         else if(add && directorios_visitados[hash(direccion_parseo)] == NULL){
@@ -460,7 +460,7 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
             fputs(direccion_archivo, file);
             fclose(file);
             contenedor *agregar = nuevo_contenedor(direccion_archivo);
-            pthread_create(&(tid[0]), NULL, add_hash, (void *)agregar);
+            pthread_create(&(tid), NULL, add_hash, (void *)agregar);
         }
 
     }
@@ -488,7 +488,7 @@ void * leer_archivo(void * arg){
 
             printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
 
-            pthread_create(&(tid[0]), NULL, add_hash, (void *)llaves);
+            pthread_create(&(tid), NULL, add_hash, (void *)llaves);
 
             //Llenamos la tabla de hash de las direcciones visitadas
 
@@ -595,20 +595,20 @@ int main(int argc, char *argv[]){
     i = 0;
     int error;
     while(i < 2){
-        error = pthread_create(&(tid[i]), NULL, &leer_archivo, NULL);
+        error = pthread_create(&(tid), NULL, &leer_archivo, NULL);
         if (error != 0)
             printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
         i++;
     }
     */
 
-    int error = pthread_create(&(tid[0]), NULL, leer_archivo, NULL);
+    int error = pthread_create(&(tid), NULL, leer_archivo, NULL);
     if (error != 0)
         printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
 
     //Esperamos a que todos los hilos finalicen
 
-    pthread_exit(0);
+    pthread_join(tid, NULL);
     pthread_mutex_destroy(&lock);
 
     printf("FINALIZADO\n");
