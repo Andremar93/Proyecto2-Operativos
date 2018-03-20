@@ -131,6 +131,7 @@ unsigned int hash(char* str) {
     unsigned int i = 0;
 
     while(i < length){
+        //Hacemos un bit shift left del numero para multiplicarlo por 33
         hash = ((hash << 5) + hash) + (*str);
         str++;
         i++;
@@ -283,25 +284,30 @@ Funcion add_hash(contenedor* agregar)
 
 Parametros
 
-    None
+    arg: void   ||  El contenido del apuntador lo casteamos en un contenedor 
+                    para sacar los datos del path a ingresar
 
-Aun no esta lista
+Esta funcion se corre en un hilo por separado, en donde recibe un path a un 
+archivo y lo parsea adecuandamente para verificarlo en la tabla de hash, en 
+caso de no encontrarse en esta significa que no esta en el indice.
+La funcion utiliza el mutex lock propuesto para los hilos para acceder a la 
+tabla de hash.
 */
 
 void * add_hash(void* arg){
+    //Casteamos el contenedor del path a verificar
     contenedor *agregar = (contenedor *)arg;
     agregar->siguiente = NULL;
-    /*
-    printf("------------------------------------------------\n");
-    printf("Se esta agregando la siguiente direccion: %s\n", agregar->direccion);
-    printf("------------------------------------------------\n");
-    */
+
+    //Extraemos la direccion al archivo dentro de la direccion
     int posicion_inicial = strlen(agregar->direccion) - 1;
     while(agregar->direccion[posicion_inicial] != '/' && posicion_inicial != -1){
         posicion_inicial--;
     }
     posicion_inicial++;
 
+    //Extraemos el nombre del archivo para verificar si se encuentra dentro 
+    //de la tabla
     int i = 0;
     char palabra[10000];
     while(posicion_inicial <= strlen(agregar->direccion)){
@@ -310,6 +316,8 @@ void * add_hash(void* arg){
         posicion_inicial++;
     }
 
+    //Extraemos una de las claves del nombre del archivo a ver si se encuentra 
+    //en la tabla
     i = 0;
     while(i < strlen(palabra)){
         char llave[10000];
@@ -322,48 +330,41 @@ void * add_hash(void* arg){
         llave[j] = '\0';
         i++;
 
-
+        //transformamos la llave a minuscula puesto que no es case sensitive
         for(j = 0; j < strlen(llave); j++){
             llave[j] = tolower(llave[j]);
         }
 
         espchars(llave);
 
-        //printf("---------------------------\n");
-
+        //verificamos la tabla de hash
         unsigned int posicion = hash(llave);
-
-        //printf("llave: %s\n", llave);
-        //printf("posicion: %d\n", posicion);
         pthread_mutex_lock(&lock);
         while(indice[posicion] != NULL && posicion < 10000 && strcmp(llave, indice[posicion]->llave) != 0)
             posicion++;
 
+        //En caso de no haber direcciones en esa llave, creamos una nueva 
+        //lista y la agregamos a la tabla
         if(indice[posicion] == NULL){
             lista *nueva_llave = nuevalista(llave);
-            //printf("La lista creada tiene llave: %s\n", nueva_llave->llave);
             contenedor *ingreso_tabla = nuevo_contenedor(agregar->direccion);
             nueva_llave->head = ingreso_tabla;
             indice[posicion] = nueva_llave;
         }
+        //Si esta ocupada la posicion verificamos que la llave sea la misma
         else if(strcmp(llave, indice[posicion]->llave) == 0){
             //Agregar elemento a lista
-
-            //AQUI HAY QUE USAR LA PALABRA CLAVE EN LA LISTA PARA VER SI TENEMOS QUE HACER REHASH O NO
             contenedor *lista_agregar = indice[posicion]->head;
-            //printf("La comparacion al agregar la llave es: %d\n",strcmp(indice[posicion]->llave, llave));
-            //printf("AQUI ESTO ES DEBIGGING%s\n", indice[posicion]->llave);
             int direccion_ya_en_indice = 0;
+            //Revisamos si la direccion exacta no se encuentra ya en la tabla
             while(lista_agregar->siguiente != NULL && direccion_ya_en_indice == 0){
-                //printf("%s\n", lista_agregar->direccion);
                 if(strcmp(lista_agregar->direccion, agregar->direccion) == 0){
                     direccion_ya_en_indice = 1;
                 }
                 lista_agregar = lista_agregar->siguiente;
             }
+            //En caso de que no se encuentre la agregamos a la tabla
             if(direccion_ya_en_indice == 0 && strcmp(lista_agregar->direccion, agregar->direccion) != 0){
-                //printf("Agregada direccion %s\n", agregar->direccion);
-                //printf("%s\n", lista_agregar->direccion);
                 contenedor *ingreso_tabla = nuevo_contenedor(agregar->direccion);
                 lista_agregar->siguiente = ingreso_tabla;
             }
@@ -386,8 +387,8 @@ Parametros
     tipo: int                   ||  Entero que representa el tipo de elemento
                                     actual
 
-Funcion que enviara los directorios hoja al proceso de lowercase para ser 
-parseados y verificados
+Funcion que enviara los path de los archivos para ser ingresados en la tabla de
+hash en caso de que no se encuentren ya en esta.
 */
 
 /*
@@ -408,6 +409,9 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
     //Verificamos si el path actual corresponde a un archivo solo si esta el 
     //flag de archivos prendido
     if(((*inodo).st_mode & S_IFMT) == S_IFREG){
+        //Si la direccion encontrada pertenece a un archivo, parseamos para 
+        //sacar la informacion que nos interesa y verificamos si hay que 
+        //agregarlo al indice y la tabla
         char direccion_parseo[10000];
         char direccion_archivo[10000];
         strcpy(direccion_parseo, nombre);
@@ -421,13 +425,13 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
         }
 
         if(altura < altura_maxima){
-            //printf("%s\n", direccion_parseo);
             int posicion_inicial = strlen(direccion_parseo) - 1;
             while(direccion_parseo[posicion_inicial] != '/' && posicion_inicial != 0){
                 posicion_inicial--;
             }
             direccion_parseo[posicion_inicial] = '\0';
-            //printf("%s\n", direccion_archivo);
+            //Verificamos si tenemos que actualizar la tabla y realizamos la 
+            //accion correspondiente
             pthread_mutex_lock(&lock);
             if(update && directorios_visitados[hash(direccion_parseo)] != NULL){
                 char nombre_archivo[10000];
@@ -439,7 +443,6 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
                     i++;
                 }
                 nombre_archivo[i] = '\0';
-                //printf("%s\n", nombre_archivo);
                 i = 0;
                 while(i < strlen(nombre_archivo) && nombre_archivo[i] != '.' && nombre_archivo[i] != ' '){
                     i++;
@@ -453,8 +456,6 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
 
                 espchars(nombre_archivo);
 
-                //printf("%s\n", nombre_archivo);
-
                 int posicion = hash(nombre_archivo);
                 lista *revisar = indice[posicion];
                 while(revisar != NULL && posicion < 10000 && strcmp(revisar->llave, nombre_archivo) != 0)
@@ -463,7 +464,6 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
                 if(revisar != NULL){
                     contenedor *revisar_contenedor = revisar->head;
                     while(conseguido == 0 && revisar_contenedor != NULL){
-                        //printf("%d\n", strcmp(revisar_contenedor->direccion, direccion_archivo));
                         if(strcmp(revisar_contenedor->direccion, direccion_archivo) == 0)
                             conseguido = 1;
                         revisar_contenedor = revisar_contenedor->siguiente;
@@ -497,7 +497,18 @@ int buscar_archivos(const char *nombre, const struct stat *inodo, int tipo){
     return 0;
 }
 
-int prueba = 0;
+/*
+Funcion leer_archivo(vpod * arg)
+
+Parametros
+
+    arg: void   ||  Apuntador que reciben los procesos para hilos, el cual no
+                    utilizamos
+
+Funcion que llena la tabla de hash segun los datos en el archivo indice y se 
+encarga de recorrer los directorios en busqueda de archivos que no se encuen
+tren en la tabla para ser agregados a esta y al archivo.
+*/
 
 void * leer_archivo(void * arg){
     FILE *file = fopen(archivo_indice, "r");
@@ -508,13 +519,10 @@ void * leer_archivo(void * arg){
 
         while(fgets(direccion_indice, 10000, file) != NULL){
             direccion_indice[strlen(direccion_indice)-1] = '\0';
-            //printf("%s\n", direccion_indice);
 
             //Llenamos la tabla de hash de palabras claves
 
             contenedor *llaves = nuevo_contenedor(direccion_indice);
-
-            //printf("La llave tiene la siguiente direccion: %s\n", llaves->direccion);
 
             pthread_create(&(tid), NULL, add_hash, (void *)llaves);
 
@@ -525,7 +533,6 @@ void * leer_archivo(void * arg){
                 i--;
 
             direccion_indice[i] = '\0';
-            //printf("%s\n", direccion_indice);
 
             contenedor *direccion_leida = nuevo_contenedor(direccion_indice);
             unsigned int llave = hash(direccion_indice);
@@ -552,15 +559,6 @@ void * leer_archivo(void * arg){
     }
 
     if(add || update){
-        /*
-        printf("------------------------------------------------------------------------------------------------\n");
-        printf("------------------------------------------------------------------------------------------------\n");
-        printf("------------------------------------------------------------------------------------------------\n");
-        printf("YA SE AGREGARON LAS COSAS DEL ARCHIVO, DE AQUI PARA ABAJO ES QUE NOS IMPORTA REVISAR\n");
-        printf("------------------------------------------------------------------------------------------------\n");
-        printf("------------------------------------------------------------------------------------------------\n");
-        printf("------------------------------------------------------------------------------------------------\n");
-        */
         ftw(directorio_inicial, &buscar_archivos, 1);
     }
 
@@ -617,26 +615,11 @@ int main(int argc, char *argv[]){
             altura_maxima++;
         i++;
     }
-    //Como llamar el ftw
-    //ftw(directorio_inicial, &buscar_archivos, 1);
-
-    //printf("%s\n", indice[hash("caminote")]->head->direccion);
-    //printf("%s\n", indice[hash("de")]->head->direccion);
 
     if (pthread_mutex_init(&lock, NULL) != 0){
         printf("\n Fallo al inicializar el mutex lock \n");
         return EXIT_FAILURE;
     }
-    /*
-    i = 0;
-    int error;
-    while(i < 2){
-        error = pthread_create(&(tid), NULL, &leer_archivo, NULL);
-        if (error != 0)
-            printf("\nEl hilo no pudo ser creado:[%s]", strerror(error));
-        i++;
-    }
-    */
 
     int error = pthread_create(&(tid_maestro), NULL, leer_archivo, NULL);
     if (error != 0){
@@ -649,20 +632,6 @@ int main(int argc, char *argv[]){
     pthread_join(tid_maestro, NULL);
     pthread_join(tid, NULL);
     pthread_mutex_destroy(&lock);
-
-    //printf("FINALIZADO\n");
-
-    /*
-    contenedor *prueba = nuevo_contenedor("caminito con maiz.painting");
-
-    add_hash(prueba);
-
-    contenedor *prueba2 = nuevo_contenedor("que es eso de que de quede");
-
-    add_hash(prueba2);
-    */
-    //printf("%s\n", indice[hash("creeme")]->head->direccion);
-    //printf("%s\n", indice[hash("con")]->head->direccion);
 
     int posicion_busqueda = hash(busqueda);
     while(indice[posicion_busqueda] != NULL && posicion_busqueda < 10000 && strcmp(indice[posicion_busqueda]->llave, busqueda) != 0){
@@ -678,15 +647,3 @@ int main(int argc, char *argv[]){
 
     return EXIT_SUCCESS;
 }
-
-//FALTA LA ALTURA
-
-/*
-Pruebas de parametros de entrada
-    printf("i, argc: %d %d\n", i, argc);
-    printf("update: %d\n", update);
-    printf("add: %d\n", add);
-    printf("altura maxima: %d\n", altura_maxima);
-    printf("Directorio inicial: %s\n", directorio_inicial);
-    printf("Archivo indice: %s\n", archivo_indice);
-*/
