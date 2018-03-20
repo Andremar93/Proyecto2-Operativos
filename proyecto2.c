@@ -342,7 +342,8 @@ void * add_hash(void* arg){
         if(indice[posicion] == NULL){
             lista *nueva_llave = nuevalista(llave);
             //printf("La lista creada tiene llave: %s\n", nueva_llave->llave);
-            nueva_llave->head = agregar;
+            contenedor *ingreso_tabla = nuevo_contenedor(agregar->direccion);
+            nueva_llave->head = ingreso_tabla;
             indice[posicion] = nueva_llave;
         }
         else if(strcmp(llave, indice[posicion]->llave) == 0){
@@ -363,7 +364,8 @@ void * add_hash(void* arg){
             if(direccion_ya_en_indice == 0 && strcmp(lista_agregar->direccion, agregar->direccion) != 0){
                 //printf("Agregada direccion %s\n", agregar->direccion);
                 //printf("%s\n", lista_agregar->direccion);
-                lista_agregar->siguiente = agregar;
+                contenedor *ingreso_tabla = nuevo_contenedor(agregar->direccion);
+                lista_agregar->siguiente = ingreso_tabla;
             }
         }
         pthread_mutex_unlock(&lock);
@@ -673,8 +675,6 @@ int main(int argc, char *argv[]){
             impresion = impresion->siguiente;
         }
     }
-
-    printf("%s\n", indice[hash("76ab29ffeacb7d4baf0ace5ba07fd3864db521")+1]->llave);
 
     return EXIT_SUCCESS;
 }
